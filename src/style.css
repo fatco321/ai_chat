@@ -1,0 +1,42 @@
+@font-face {
+  font-family: Proxima;
+  src: url("./assets/ProximaNova.woff2") format("woff2");
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: Proxima;
+  src: url("./assets/ProximaNova-Light.woff2") format("woff2");
+  font-weight: 100;
+}
+
+@font-face {
+  font-family: Proxima;
+  src: url("./assets/ProximaNova-Bold.woff2") format("woff2");
+  font-weight: 900;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Proxima, sans-serif;
+  user-select: none;
+  font-size: 2.4vw;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.v-enter-active,
+.v-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.v-enter-from,
+.v-leave-to {
+  opacity: 0;
+}
