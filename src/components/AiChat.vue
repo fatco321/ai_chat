@@ -16,7 +16,9 @@
           <img v-else :src="faviconUrl" alt="AI" class="avatar-img" />
         </div>
         <div class="bubble">
-          <p class="bubble-text">{{ msg.text }}</p>
+          <p v-if="msg.role === 'user'" class="bubble-text">{{ msg.text }}</p>
+
+          <p v-else class="bubble-text" v-html="msg.text"></p>
         </div>
       </div>
 
@@ -63,12 +65,9 @@
 
 <script setup>
 import { nextTick, onMounted, ref, watch } from "vue";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import faviconUrl from "../assets/favicon.png";
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+const WORKER_URL = import.meta.env.VITE_WORKER_URL || "";
 
 const userInput = ref("");
 const history = ref([]);
@@ -76,13 +75,6 @@ const loading = ref(false);
 const error = ref(null);
 const messagesEl = ref(null);
 const inputEl = ref(null);
-
-const chatSession = model.startChat({
-  history: [],
-  generationConfig: {
-    maxOutputTokens: 1000,
-  },
-});
 
 const scrollToBottom = async () => {
   await nextTick();
@@ -100,6 +92,10 @@ const autoGrow = () => {
 const sendMessage = async () => {
   const text = userInput.value.trim();
   if (!text) return;
+  if (!WORKER_URL) {
+    error.value = "Не задан VITE_WORKER_URL в .env";
+    return;
+  }
 
   history.value.push({ role: "user", text });
   userInput.value = "";
@@ -108,14 +104,32 @@ const sendMessage = async () => {
   error.value = null;
 
   try {
-    const result = await chatSession.sendMessage(text);
-    const response = await result.response;
-    const answer = response.text();
+    const response = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: text }),
+    });
 
-    history.value.push({ role: "model", text: answer });
+    if (!response.ok) {
+      throw new Error(`Ошибка сервера: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (aiText) {
+      history.value.push({ role: "model", text: aiText });
+    } else {
+      history.value.push({
+        role: "model",
+        text: "Ошибка: пустой ответ от нейросети.",
+      });
+      console.error("Полный ответ:", data);
+    }
   } catch (err) {
     console.error(err);
-    error.value = "Ошибка: Не удалось получить ответ. Проверьте консоль.";
+    error.value = "Ошибка соединения. Проверьте консоль.";
+    history.value.push({ role: "model", text: "⚠️ Ошибка связи с сервером." });
   } finally {
     loading.value = false;
   }
